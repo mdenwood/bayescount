@@ -1,0 +1,70 @@
+useDynLib('bayescount', .registration = TRUE, .fixes = "C_")
+
+import(
+
+	stats,
+	utils,
+	parallel,
+	runjags
+	
+)
+
+export(
+	
+	count_analysis,
+	count.analysis,		# backwards compatibility v0.99
+	fec.analysis,		# backwards compatibility v0.99
+	FEC.analysis,		# backwards compatibility v0.99
+	bayescount.single,	# deprecated v1.0
+	
+	count_model,
+	count.model,		# backwards compatibility v0.99
+	fec.model,			# backwards compatibility v0.99
+	FEC.model,			# backwards compatibility v0.99
+	run.model,			# deprecated v1.0
+	
+	count_power,
+	count.power,		# backwards compatibility v0.99
+	fec.power,			# backwards compatibility v0.99
+	FEC.power,			# backwards compatibility v0.99
+	
+	count_precision,
+	count.precision,	# backwards compatibility v0.99
+	fec.precision,		# backwards compatibility v0.99
+	FEC.precision,		# backwards compatibility v0.99
+	fec.power.limits,	# deprecated v1.0
+	FEC.power.limits,	# deprecated v1.0
+	
+	reduction_analysis,
+	reduction.analysis,
+	fecrt.analysis,		# backwards compatibility v0.99
+	FECRT.analysis,		# backwards compatibility v0.99
+	fecrt,				# deprecated v1.0
+	FECRT,				# deprecated v1.0
+	
+	reduction_model,
+	reduction.model,		
+	fecrt.model,		# backwards compatibility v0.99
+	FECRT.model,		# backwards compatibility v0.99
+
+	reduction_power,
+	reduction.power,
+	fecrt.power,		# backwards compatibility v0.99
+	FECRT.power,		# backwards compatibility v0.99
+
+	reduction_precision,
+	reduction.precision,
+	fecrt.precision,	# backwards compatibility v0.99
+	FECRT.precision,	# backwards compatibility v0.99
+	fecrt.power.limits,	# deprecated v1.0
+	FECRT.power.limits,	# deprecated v1.0
+
+	normal_params,
+	normal.params, 		# backwards compatibility v0.99
+	
+	lnormal_params,
+	lnormal.params		# backwards compatibility v0.99
+
+	)
+
+S3method(print, fecrt_results)

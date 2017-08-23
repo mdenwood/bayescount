@@ -1,0 +1,18 @@
+#!/bin/sh
+
+rm -f .DS_Store
+rm -f R/.DS_Store
+rm -f inst/.DS_Store
+rm -f man/.DS_Store
+rm -rf R/.svn
+rm -rf inst/.svn
+rm -rf man/.svn
+rm -f src/.DS_Store
+
+rm -rf src/.deps
+
+rm -f src/precision.o
+rm -f src/bayescount.so
+rm -f src/symbols.rds
+
+exit 0

@@ -1,0 +1,802 @@
+#include <math.h>
+#include <R.h>
+#include <Rmath.h>
+#include <stdio.h>
+
+
+double myround(double number, int decimals){
+	number = number * pow(10,decimals);
+	return ((double)((number >= 0) ? (int)(number + 0.5) : (int)(number - 0.5))) / pow(10,decimals);
+}
+
+
+void precisionanalysispopulation(double *meanepg, double *gfaeces, double *sensitivity, int *replicates, int *animals, double *coeffvarmcm, double *coeffvarrep, double *coeffvarind, double *coeffvargroup, double *lowerl, double *upperl, int *maxiterations, int *precision, double *lcil, double *ucil, int *print, int *nin, int *ntotal){
+
+double shapegp;
+double shapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	shapeindt[i] = pow(coeffvarmcm[i],2) + pow(coeffvarrep[i]/sqrt(gfaeces[i]),2) + (pow(coeffvarmcm[i],2)*pow(coeffvarrep[i]/sqrt(gfaeces[i]),2));
+	shapeindt[i] = 1.0 / (shapeindt[i] + pow(coeffvarrep[i],2) + (shapeindt[i]*pow(coeffvarrep[i],2)));
+}
+shapegp = 1.0/(coeffvargroup[0]*coeffvargroup[0]);
+
+//Rprintf("CVS:  %f, %f\n", shapeindt, shapegp);
+
+double indmeans;
+double replicatemeans;
+
+int set, a, skipset;
+double lci, uci, meancount, sumcount;
+
+int decimals = precision[0];
+
+double lower = lowerl[0];
+double upper = upperl[0];
+
+if(print[0]){
+	Rprintf("< Determining power >\n   l95       u95    iteration\n");
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	sumcount = 0.;
+	
+	for(a=0; a<animals[0]; a++){
+		indmeans = rgamma(shapegp, (meanepg[0] / shapegp));
+		replicatemeans = rgamma(shapeindt[a]*replicates[a], indmeans/(shapeindt[a]*replicates[a]));
+		sumcount = sumcount + (((double)rpois(replicatemeans*replicates[a]*sensitivity[a]))*(1/sensitivity[a]))/replicates[a];
+	}
+	ntotal[0]++;
+	meancount = sumcount/animals[0];
+	
+	nin[0] = nin[0] + ((meancount <= upper) && (meancount >= lower));
+	
+	lci = qbeta(lcil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	uci = qbeta(ucil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	
+	if(print[0]){
+		Rprintf("%f, %f, %i\r", lci, uci, ntotal[0]);
+	}
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		break;
+	}
+}
+
+PutRNGstate(); 
+
+if(print[0]){
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power determined >\n");
+	}else{
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power not determined >\n");
+	}
+}
+
+}
+
+
+void precisionanalysispopulationfixed(double *meanepg, double *gfaeces, double *sensitivity, int *replicates, int *animals, double *coeffvarmcm, double *coeffvarrep, double *coeffvarind, double *coeffvargroup, int *maxiterations, int *print, double *meancounts){
+
+double shapegp;
+double shapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	shapeindt[i] = pow(coeffvarmcm[i],2) + pow(coeffvarrep[i]/sqrt(gfaeces[i]),2) + (pow(coeffvarmcm[i],2)*pow(coeffvarrep[i]/sqrt(gfaeces[i]),2));
+	shapeindt[i] = 1.0 / (shapeindt[i] + pow(coeffvarrep[i],2) + (shapeindt[i]*pow(coeffvarrep[i],2)));
+}
+
+shapegp = 1/(coeffvargroup[0]*coeffvargroup[0]);
+
+//Rprintf("CVS:  %f, %f\n", shapeindt, shapegp);
+
+double indmeans;
+double replicatemeans;
+
+int set, a, skipset;
+double lci, uci, meancount, sumcount;
+
+if(print[0]){
+	Rprintf("< Running simulation >\n");
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	sumcount = 0.;
+	
+	for(a=0; a<animals[0]; a++){
+		indmeans = rgamma(shapegp, (meanepg[0] / shapegp));
+		replicatemeans = rgamma(shapeindt[a]*replicates[a], indmeans/(shapeindt[a]*replicates[a]));
+		sumcount = sumcount + (((double)rpois(replicatemeans*replicates[a]*sensitivity[a]))*(1/sensitivity[a]))/replicates[a];
+	}
+
+	meancount = sumcount/animals[0];
+	
+	meancounts[set] = meancount;
+	
+	if(print[0]){
+		Rprintf("\r%i%% complete", (int)(((double)set/(double)maxiterations[0])*100));
+	}
+}
+
+PutRNGstate(); 
+
+if(print[0]){
+	Rprintf("\r< Finished >                  \n");
+}
+
+}
+
+
+
+
+
+void precisionanalysissample(double *meanepg, double *gfaeces, double *sensitivity, int *replicates, int *animals, double *coeffvarmcm, double *coeffvarrep, double *coeffvarind, double *coeffvargroup, double *lowerl, double *upperl, int *maxiterations, int *precision, double *lcil, double *ucil, int *print, int *nin, int *ntotal){
+
+double shapegp;
+double shapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	shapeindt[i] = pow(coeffvarmcm[i],2) + pow(coeffvarrep[i]/sqrt(gfaeces[i]),2) + (pow(coeffvarmcm[i],2)*pow(coeffvarrep[i]/sqrt(gfaeces[i]),2));
+	shapeindt[i] = 1.0 / (shapeindt[i] + pow(coeffvarrep[i],2) + (shapeindt[i]*pow(coeffvarrep[i],2)));
+}
+
+shapegp = 1/(coeffvargroup[0]*coeffvargroup[0]);
+
+//Rprintf("CVS:  %f, %f\n", shapeindt, shapegp);
+
+double indmeans[animals[0]];
+double replicatemeans;
+
+int set, a, skipset, done;
+double lci, uci, meancount, sumcount, samplesum, adjust;
+
+int decimals = precision[0];
+
+double lower = lowerl[0];
+double upper = upperl[0];
+
+if(print[0]){
+	Rprintf("< Determining power >\n   l95       u95    iteration\n");
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+
+	for(;;){
+		samplesum = 0;
+		done = 1;
+	
+		for(a=0; a<animals[0]; a++){
+			indmeans[a] = rgamma(shapegp, (meanepg[0] / shapegp));
+			samplesum = samplesum+indmeans[a];
+		}
+	
+		adjust = meanepg[0] - (samplesum / animals[0]);
+	
+		for(a=0; a<animals[0]; a++){
+			indmeans[a] = indmeans[a] + adjust;
+			if(indmeans[a] < 0){
+				done = 0;
+				break;
+			}
+		}
+		
+		if(done==1){
+			break;
+		}
+	}
+	
+	sumcount = 0.;
+
+	for(a=0; a<animals[0]; a++){
+		replicatemeans = rgamma(shapeindt[a]*replicates[a], indmeans[a]/(shapeindt[a]*replicates[a]));
+		sumcount = sumcount + (((double)rpois(replicatemeans*replicates[a]*sensitivity[a]))*(1/sensitivity[a]))/replicates[a];
+	}
+	
+	ntotal[0]++;
+	meancount = sumcount/animals[0];
+	
+	nin[0] = nin[0] + ((meancount <= upper) && (meancount >= lower));
+	
+	lci = qbeta(lcil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	uci = qbeta(ucil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	
+	if(print[0]){
+		Rprintf("%f, %f, %i\r", lci, uci, ntotal[0]);
+	}
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		break;
+	}
+}
+
+PutRNGstate();
+
+if(print[0]){
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power determined >\n");
+	}else{
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power not determined >\n");
+	}
+}
+
+}
+
+
+void precisionanalysissamplefixed(double *meanepg, double *gfaeces, double *sensitivity, int *replicates, int *animals, double *coeffvarmcm, double *coeffvarrep, double *coeffvarind, double *coeffvargroup, int *maxiterations, int *print, double *meancounts){
+
+double shapegp;
+double shapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	shapeindt[i] = pow(coeffvarmcm[i],2) + pow(coeffvarrep[i]/sqrt(gfaeces[i]),2) + (pow(coeffvarmcm[i],2)*pow(coeffvarrep[i]/sqrt(gfaeces[i]),2));
+	shapeindt[i] = 1.0 / (shapeindt[i] + pow(coeffvarrep[i],2) + (shapeindt[i]*pow(coeffvarrep[i],2)));
+}
+
+shapegp = 1/(coeffvargroup[0]*coeffvargroup[0]);
+
+//Rprintf("CVS:  %f, %f\n", shapeindt, shapegp);
+
+double indmeans[animals[0]];
+double replicatemeans;
+
+int set, a, skipset;
+double lci, uci, meancount, sumcount, done, samplesum, adjust;
+
+if(print[0]){
+	Rprintf("< Running simulation >\n");
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	
+	for(;;){
+		samplesum = 0;
+		done = 1;
+	
+		for(a=0; a<animals[0]; a++){
+			indmeans[a] = rgamma(shapegp, (meanepg[0] / shapegp));
+			samplesum = samplesum+indmeans[a];
+		}
+	
+		adjust = meanepg[0] - (samplesum / animals[0]);
+	
+		for(a=0; a<animals[0]; a++){
+			indmeans[a] = indmeans[a] + adjust;
+			if(indmeans[a] < 0){
+				done = 0;
+				break;
+			}
+		}
+		
+		if(done==1){
+			break;
+		}
+	}
+	
+	sumcount = 0.;
+		
+	for(a=0; a<animals[0]; a++){
+		replicatemeans = rgamma(shapeindt[a]*replicates[a], indmeans[a]/(shapeindt[a]*replicates[a]));
+		sumcount = sumcount + (((double)rpois(replicatemeans*replicates[a]*sensitivity[a]))*(1/sensitivity[a]))/replicates[a];
+	}
+	
+	meancount = sumcount/animals[0];
+	meancounts[set] = meancount;
+		
+	if(print[0]){
+		Rprintf("\r%i%% complete", (int)(((double)set/(double)maxiterations[0])*100));
+	}
+}
+
+PutRNGstate();
+
+if(print[0]){
+	Rprintf("\r< Finished >                         \n");
+}
+
+}
+
+
+
+double getredmean(double reda, double redb, double redmean){
+	return(redmean);
+}
+
+double getreddist(double reda, double redb, double redmean){
+	return(rgamma(reda, redb));
+}
+
+
+void fecrtpowerpopulation(double *meanepg, double *reduction, double *coeffvarred, double *pregfaeces, double *postgfaeces, double *presensitivity, double *postsensitivity, int *prereplicates, int *postreplicates, int *animals, double *precoeffvarmcm, double *precoeffvarrep, double *precoeffvarind, double *precoeffvargroup, double *postcoeffvarmcm, double *postcoeffvarrep, double *postcoeffvarind, double *postcoeffvargroup, double *lowerl, double *upperl, int *maxiterations, int *precision, double *lcil, double *ucil, int *print, int *nin, int *ntotal){
+
+double preshapegp;
+double preshapeindt[animals[0]];
+double postshapegp;
+double postshapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	preshapeindt[i] = pow(precoeffvarmcm[i],2) + pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2) + (pow(precoeffvarmcm[i],2)*pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2));
+	preshapeindt[i] = 1.0 / (preshapeindt[i] + pow(precoeffvarrep[i],2) + (preshapeindt[i]*pow(precoeffvarrep[i],2)));
+
+	postshapeindt[i] = pow(postcoeffvarmcm[i],2) + pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2) + (pow(postcoeffvarmcm[i],2)*pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2));
+	postshapeindt[i] = 1.0 / (postshapeindt[i] + pow(postcoeffvarrep[i],2) + (postshapeindt[i]*pow(postcoeffvarrep[i],2)));
+}
+
+preshapegp = 1/(precoeffvargroup[0]*precoeffvargroup[0]);
+postshapegp = 1/(postcoeffvargroup[0]*postcoeffvargroup[0]);
+
+double indmeans;
+double replicatemeans;
+
+int set, a, skipset;
+double lci, uci, meanred, presumcount, postsumcount;
+
+int decimals = precision[0];
+
+double lower = lowerl[0];
+double upper = upperl[0];
+
+if(print[0]){
+	Rprintf("< Determining power >\n   l95       u95    iteration\n");
+}
+
+double reda = 0.0;
+double redb = 0.0;
+
+double (*getred)(double, double, double);
+
+if(coeffvarred[0]==0){
+	getred = &getredmean;
+}else{
+	reda = 1 / pow(coeffvarred[0],2);
+	redb = reduction[0] / reda;
+	getred = &getreddist;
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	presumcount = 0.;
+	postsumcount = 0.;
+	
+	for(a=0; a<animals[0]; a++){
+		indmeans = rgamma(preshapegp, (meanepg[0] / preshapegp));
+		replicatemeans = rgamma(preshapeindt[a]*prereplicates[a], indmeans/(preshapeindt[a]*prereplicates[a]));
+		presumcount = presumcount + (((double)rpois(replicatemeans*prereplicates[a]*presensitivity[a]))*(1/presensitivity[a]))/prereplicates[a];
+		
+		indmeans = rgamma(postshapegp, ((meanepg[0]*getred(reda, redb, reduction[0])) / postshapegp));
+		replicatemeans = rgamma(postshapeindt[a]*postreplicates[a], indmeans/(postshapeindt[a]*postreplicates[a]));
+		postsumcount = postsumcount + (((double)rpois(replicatemeans*postreplicates[a]*postsensitivity[a]))*(1/postsensitivity[a]))/postreplicates[a];
+	}
+	ntotal[0]++;
+	
+	//Will give NaN if pre=post=0 or Inf if pre=0 & post>0.  The reductions for these should be 0, so delta =1:
+	if(presumcount==0){
+		meanred=1;
+	}else{
+		meanred = postsumcount / presumcount;
+	}
+	
+	nin[0] = nin[0] + ((meanred <= upper) && (meanred >= lower));
+	
+	lci = qbeta(lcil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	uci = qbeta(ucil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	
+	if(print[0]){
+		Rprintf("%f, %f, %i\r", lci, uci, ntotal[0]);
+	}
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		break;
+	}
+}
+
+PutRNGstate(); 
+
+if(print[0]){
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power determined >\n");
+	}else{
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power not determined >\n");
+	}
+}
+
+}
+
+
+
+void fecrtpowersample(double *meanepg, double *reduction, double *coeffvarred, double *pregfaeces, double *postgfaeces, double *presensitivity, double *postsensitivity, int *prereplicates, int *postreplicates, int *animals, double *precoeffvarmcm, double *precoeffvarrep, double *precoeffvarind, double *precoeffvargroup, double *postcoeffvarmcm, double *postcoeffvarrep, double *postcoeffvarind, double *postcoeffvargroup, double *lowerl, double *upperl, int *maxiterations, int *precision, double *lcil, double *ucil, int *print, int *nin, int *ntotal){
+
+double preshapegp;
+double preshapeindt[animals[0]];
+double postshapegp;
+double postshapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	preshapeindt[i] = pow(precoeffvarmcm[i],2) + pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2) + (pow(precoeffvarmcm[i],2)*pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2));
+	preshapeindt[i] = 1.0 / (preshapeindt[i] + pow(precoeffvarrep[i],2) + (preshapeindt[i]*pow(precoeffvarrep[i],2)));
+	
+	postshapeindt[i] = pow(postcoeffvarmcm[i],2) + pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2) + (pow(postcoeffvarmcm[i],2)*pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2));
+	postshapeindt[i] = 1.0 / (postshapeindt[i] + pow(postcoeffvarrep[i],2) + (postshapeindt[i]*pow(postcoeffvarrep[i],2)));
+}
+
+preshapegp = 1/(precoeffvargroup[0]*precoeffvargroup[0]);
+postshapegp = 1/(postcoeffvargroup[0]*postcoeffvargroup[0]);
+
+double preindmeans[animals[0]];
+double postindmeans[animals[0]];
+double replicatemeans;
+
+int set, a, skipset, done;
+double lci, uci, meanred, presumcount, postsumcount, samplesum, adjust, animalreduction, thisanimalreduction;
+
+int decimals = precision[0];
+
+double lower = lowerl[0];
+double upper = upperl[0];
+
+if(print[0]){
+	Rprintf("< Determining power >\n   l95       u95    iteration\n");
+}
+
+double reda = 0.0;
+double redb = 0.0;
+
+double (*getred)(double, double, double);
+
+if(coeffvarred[0]==0){
+	getred = &getredmean;
+}else{
+	reda = 1 / pow(coeffvarred[0],2);
+	redb = reduction[0] / reda;
+	getred = &getreddist;
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	
+	for(;;){
+		samplesum = 0;
+		done = 1;
+	
+		for(a=0; a<animals[0]; a++){
+			preindmeans[a] = rgamma(preshapegp, (meanepg[0] / preshapegp));
+			samplesum = samplesum+preindmeans[a];
+		}
+	
+		adjust = meanepg[0] - (samplesum / animals[0]);
+	
+		for(a=0; a<animals[0]; a++){
+			preindmeans[a] = preindmeans[a] + adjust;
+			if(preindmeans[a] < 0){
+				done = 0;
+				break;
+			}
+		}
+		
+		if(done==1){
+			break;
+		}
+	}
+	
+	for(;;){
+		samplesum = 0;
+		done = 1;
+		animalreduction = 0;
+		
+		for(a=0; a<animals[0]; a++){
+			thisanimalreduction = getred(reda, redb, reduction[0]);
+			animalreduction = animalreduction + thisanimalreduction;
+			postindmeans[a] = rgamma(postshapegp, ((meanepg[0]*thisanimalreduction) / postshapegp));
+			samplesum = samplesum+postindmeans[a];
+		}
+	
+		adjust = (meanepg[0]*(animalreduction/animals[0])) - (samplesum / animals[0]);
+	
+		for(a=0; a<animals[0]; a++){
+			postindmeans[a] = postindmeans[a] + adjust;
+			if(postindmeans[a] < 0){
+				done = 0;
+				break;
+			}
+		}
+		
+		if(done==1){
+			break;
+		}
+	}
+	
+	presumcount = 0.;
+	postsumcount = 0.;
+	
+	for(a=0; a<animals[0]; a++){
+		replicatemeans = rgamma(preshapeindt[a]*prereplicates[a], preindmeans[a]/(preshapeindt[a]*prereplicates[a]));
+		presumcount = presumcount + (((double)rpois(replicatemeans*prereplicates[a]*presensitivity[a]))*(1/presensitivity[a]))/prereplicates[a];
+
+		replicatemeans = rgamma(postshapeindt[a]*postreplicates[a], postindmeans[a]/(postshapeindt[a]*postreplicates[a]));
+		postsumcount = postsumcount + (((double)rpois(replicatemeans*postreplicates[a]*postsensitivity[a]))*(1/postsensitivity[a]))/postreplicates[a];
+	}
+	
+	ntotal[0]++;
+	
+	//Will give NaN if pre=post=0 or Inf if pre=0 & post>0.  The reductions for these should be 0, so delta =1:
+	if(presumcount==0){
+		meanred=1;
+	}else{
+		meanred = postsumcount / presumcount;
+	}
+	
+	nin[0] = nin[0] + ((meanred <= upper) && (meanred >= lower));
+	
+	lci = qbeta(lcil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	uci = qbeta(ucil[0], nin[0]+1, (ntotal[0]-nin[0])+1, 1, 0);
+	
+	if(print[0]){
+		Rprintf("%f, %f, %i\r", lci, uci, ntotal[0]);
+	}
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		break;
+	}
+}
+
+PutRNGstate(); 
+
+if(print[0]){
+	if(myround(lci, decimals) == myround(uci,decimals)){
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power determined >\n");
+	}else{
+		Rprintf("%f, %f, %i\n", lci, uci, ntotal[0]);
+		Rprintf("%f, %f, (rounded)\n", myround(lci, decimals), myround(uci,decimals));
+		Rprintf("< Power not determined >\n");
+	}
+}
+
+}
+
+
+void fecrtpowerpopulationfixed(double *meanepg, double *reduction, double *coeffvarred, double *pregfaeces, double *postgfaeces, double *presensitivity, double *postsensitivity, int *prereplicates, int *postreplicates, int *animals, double *precoeffvarmcm, double *precoeffvarrep, double *precoeffvarind, double *precoeffvargroup, double *postcoeffvarmcm, double *postcoeffvarrep, double *postcoeffvarind, double *postcoeffvargroup, int *maxiterations, int *print, double *meanreds){
+
+double preshapegp;
+double preshapeindt[animals[0]];
+double postshapegp;
+double postshapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	preshapeindt[i] = pow(precoeffvarmcm[i],2) + pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2) + (pow(precoeffvarmcm[i],2)*pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2));
+	preshapeindt[i] = 1.0 / (preshapeindt[i] + pow(precoeffvarrep[i],2) + (preshapeindt[i]*pow(precoeffvarrep[i],2)));
+
+	postshapeindt[i] = pow(postcoeffvarmcm[i],2) + pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2) + (pow(postcoeffvarmcm[i],2)*pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2));
+	postshapeindt[i] = 1.0 / (postshapeindt[i] + pow(postcoeffvarrep[i],2) + (postshapeindt[i]*pow(postcoeffvarrep[i],2)));
+}
+
+preshapegp = 1/(precoeffvargroup[0]*precoeffvargroup[0]);
+postshapegp = 1/(postcoeffvargroup[0]*postcoeffvargroup[0]);
+
+double indmeans;
+double replicatemeans;
+
+int set, a, skipset;
+double lci, uci, meanred, presumcount, postsumcount;
+
+if(print[0]){
+	Rprintf("< Running simulation >\n");
+}
+
+double reda = 0;
+double redb = 0;
+
+double (*getred)(double, double, double);
+
+if(coeffvarred[0]==0){
+	getred = &getredmean;
+}else{
+	reda = 1 / pow(coeffvarred[0],2);
+	redb = reduction[0] / reda;
+	getred = &getreddist;
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	presumcount = 0.;
+	postsumcount = 0.;
+	
+	for(a=0; a<animals[0]; a++){
+		indmeans = rgamma(preshapegp, (meanepg[0] / preshapegp));
+		replicatemeans = rgamma(preshapeindt[a]*prereplicates[a], indmeans/(preshapeindt[a]*prereplicates[a]));
+		presumcount = presumcount + (((double)rpois(replicatemeans*prereplicates[a]*presensitivity[a]))*(1/presensitivity[a]))/prereplicates[a];
+		
+		indmeans = rgamma(postshapegp, ((meanepg[0]*getred(reda, redb, reduction[0])) / postshapegp));
+		replicatemeans = rgamma(postshapeindt[a]*postreplicates[a], indmeans/(postshapeindt[a]*postreplicates[a]));
+		postsumcount = postsumcount + (((double)rpois(replicatemeans*postreplicates[a]*postsensitivity[a]))*(1/postsensitivity[a]))/postreplicates[a];
+	}
+
+	//Will give NaN if pre=post=0 or Inf if pre=0 & post>0.  The reductions for these should be 0, so delta =1:
+	if(presumcount==0){
+		meanred=1;
+	}else{
+		meanred = postsumcount / presumcount;
+	}
+	
+	meanreds[set] = meanred;
+	
+	if(print[0]){
+		Rprintf("\r%i%% complete", (int)(((double)set/(double)maxiterations[0])*100));
+	}
+}
+
+PutRNGstate(); 
+
+if(print[0]){
+	Rprintf("< Finished >                             \n");
+}
+
+}
+
+
+
+void fecrtpowersamplefixed(double *meanepg, double *reduction, double *coeffvarred, double *pregfaeces, double *postgfaeces, double *presensitivity, double *postsensitivity, int *prereplicates, int *postreplicates, int *animals, double *precoeffvarmcm, double *precoeffvarrep, double *precoeffvarind, double *precoeffvargroup, double *postcoeffvarmcm, double *postcoeffvarrep, double *postcoeffvarind, double *postcoeffvargroup, int *maxiterations, int *print, double *meanreds){
+
+double preshapegp;
+double preshapeindt[animals[0]];
+double postshapegp;
+double postshapeindt[animals[0]];
+
+int i;
+
+for(i=0; i<animals[0]; i++){
+	preshapeindt[i] = pow(precoeffvarmcm[i],2) + pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2) + (pow(precoeffvarmcm[i],2)*pow(precoeffvarrep[i]/sqrt(pregfaeces[i]),2));
+	preshapeindt[i] = 1.0 / (preshapeindt[i] + pow(precoeffvarrep[i],2) + (preshapeindt[i]*pow(precoeffvarrep[i],2)));
+
+	postshapeindt[i] = pow(postcoeffvarmcm[i],2) + pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2) + (pow(postcoeffvarmcm[i],2)*pow(postcoeffvarrep[i]/sqrt(postgfaeces[i]),2));
+	postshapeindt[i] = 1.0 / (postshapeindt[i] + pow(postcoeffvarrep[i],2) + (postshapeindt[i]*pow(postcoeffvarrep[i],2)));
+}
+
+preshapegp = 1/(precoeffvargroup[0]*precoeffvargroup[0]);
+postshapegp = 1/(postcoeffvargroup[0]*postcoeffvargroup[0]);
+
+double preindmeans[animals[0]];
+double postindmeans[animals[0]];
+double replicatemeans;
+
+int set, a, skipset, done;
+double lci, uci, meanred, presumcount, postsumcount, samplesum, adjust, animalreduction, thisanimalreduction;
+
+if(print[0]){
+	Rprintf("< Running simulation >\n");
+}
+
+double reda = 0;
+double redb = 0;
+
+double (*getred)(double, double, double);
+
+if(coeffvarred[0]==0){
+	getred = &getredmean;
+}else{
+	reda = 1 / pow(coeffvarred[0],2);
+	redb = reduction[0] / reda;
+	getred = &getreddist;
+}
+
+GetRNGstate();
+
+for(set=0; set<maxiterations[0]; set++){
+	
+	for(;;){
+		samplesum = 0;
+		done = 1;
+	
+		for(a=0; a<animals[0]; a++){
+			preindmeans[a] = rgamma(preshapegp, (meanepg[0] / preshapegp));
+			samplesum = samplesum+preindmeans[a];
+		}
+	
+		adjust = meanepg[0] - (samplesum / animals[0]);
+	
+		for(a=0; a<animals[0]; a++){
+			preindmeans[a] = preindmeans[a] + adjust;
+			if(preindmeans[a] < 0){
+				done = 0;
+				break;
+			}
+		}
+		
+		if(done==1){
+			break;
+		}
+	}
+	
+	for(;;){
+		samplesum = 0;
+		done = 1;
+		animalreduction = 0;
+	
+		for(a=0; a<animals[0]; a++){
+			thisanimalreduction = getred(reda, redb, reduction[0]);
+			animalreduction = animalreduction + thisanimalreduction;
+			postindmeans[a] = rgamma(postshapegp, ((meanepg[0]*thisanimalreduction) / postshapegp));
+			samplesum = samplesum+postindmeans[a];
+		}
+	
+		adjust = (meanepg[0]*(animalreduction/animals[0])) - (samplesum / animals[0]);
+	
+		for(a=animals[0]; a--; ){
+			postindmeans[a] = postindmeans[a] + adjust;
+			if(postindmeans[a] < 0){
+				done = 0;
+				break;
+			}
+		}
+		
+		if(done==1){
+			break;
+		}
+	}
+	
+	presumcount = 0.;
+	postsumcount = 0.;
+	
+	for(a=0; a<animals[0]; a++){
+		replicatemeans = rgamma(preshapeindt[a]*prereplicates[a], preindmeans[a]/(preshapeindt[a]*prereplicates[a]));
+		presumcount = presumcount + (((double)rpois(replicatemeans*prereplicates[a]*presensitivity[a]))*(1/presensitivity[a]))/prereplicates[a];
+
+		replicatemeans = rgamma(postshapeindt[a]*postreplicates[a], postindmeans[a]/(postshapeindt[a]*postreplicates[a]));
+		postsumcount = postsumcount + (((double)rpois(replicatemeans*postreplicates[a]*postsensitivity[a]))*(1/postsensitivity[a]))/postreplicates[a];
+
+	}
+	
+	//Will give NaN if pre=post=0 or Inf if pre=0 & post>0.  The reductions for these should be 0, so delta =1:
+	if(presumcount==0){
+		meanred=1;
+	}else{
+		meanred = postsumcount / presumcount;
+	}
+	meanreds[set] = meanred;
+
+	if(print[0]){
+		Rprintf("\r%i%% complete", (int)(((double)set/(double)maxiterations[0])*100));
+	}
+}
+
+PutRNGstate(); 
+
+if(print[0]){
+	Rprintf("< Finished >                             \n");
+}
+
+}
+
