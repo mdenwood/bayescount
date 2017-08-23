@@ -11,7 +11,7 @@ rm -f src/.DS_Store
 
 rm -rf src/.deps
 
-rm -f src/precision.o
+rm -f src/*.o
 rm -f src/bayescount.so
 rm -f src/symbols.rds
 
