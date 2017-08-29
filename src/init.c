@@ -11,9 +11,9 @@ extern void ughyperR(void *, void *, void *, void *, void *, void *);
 
 static const R_CMethodDef CEntries[] = {
 
-    CALLDEF(fecrt_pee_wrap, 16),
+    CALLDEF(fecrt_pee_wrap, 13),
     CALLDEF(fecrt_pvals, 23),
-    CALLDEF(fecrt_power_comparison, 28),
+    CALLDEF(fecrt_power_comparison, 23),
 
     CALLDEF(pghyperR, 6),
     CALLDEF(ughyperR, 6),
@@ -21,10 +21,10 @@ static const R_CMethodDef CEntries[] = {
     CALLDEF(pbnb_lower_wrap, 5),
     CALLDEF(pbnb_upper_wrap, 5),
 
-    CALLDEF(waavp_ci_wrap, 8),
+    CALLDEF(waavp_ci_wrap, 9),
     CALLDEF(dobson_ci_wrap, 7),
     CALLDEF(conjbeta_ci_wrap, 12),
-    CALLDEF(asymptotic_ci_wrap, 9),
+    CALLDEF(asymptotic_ci_wrap, 10),
 
     CALLDEF(precision_count, 12),
     CALLDEF(precision_reduction, 13),

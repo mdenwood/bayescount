@@ -1,5 +1,30 @@
 library('bayescount')
 
+tt <- bayescount:::asymptotic_ci_wrap(1:10, 1:10)
+
+
+fpr <- bayescount:::fecrt_power_wrap(paired=FALSE, iterations=10000, trues=0.90, rep_pre=1, rep_post=10, edt_pre=1, edt_post=0.1, preN=40, postN=40)
+
+fpr <- bayescount:::fecrt_power_wrap(iterations=100000, red=0.9, pair_type=0)
+fpr$classifications[1] / 10000
+fpr$classifications[4] / 10000
+fpr <- bayescount:::fecrt_power_wrap(iterations=10000, red=0.9, pair_type=1)
+fpr$classifications[1] / 10000
+fpr$classifications[4] / 10000
+
+
+# TOFIX:
+	# Failure values:  p1: nan, p2: nan  (presum: 235, preN: 20, prek: 0.183922, postsum: 16, postN: 20, postk: 6.080000, lt: 0.900000, ut: 0.950000)
+	bayescount:::fecrt_pee_direct(235, 20, 0.183922, 16, 20, 6.080000, 0.9, 0.95)
+
+	# Failure values:  p1: 0.626118, p2: nan  (presum: 148, preN: 20, prek: 0.147283, postsum: 14, postN: 20, postk: 0.721705, lt: 0.900000, ut: 0.950000)
+	bayescount:::fecrt_pee_direct(148, 20, 0.147283, 14, 20, 0.721705, 0.9, 0.95)
+
+	
+	
+fpr$classifications[6] / 10000
+fpr$classifications[9] / 10000
+summary(fpr$obsred)
 
 ##### Christian's approach
 

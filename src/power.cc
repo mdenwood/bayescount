@@ -9,6 +9,8 @@ Last updated by MJD February 2017
 #include <R.h>
 #include <Rmath.h>
 
+#include <iostream>
+
 // For std::nth_element used in ratio of betas MC approximation:
 #include <vector>
 #include <algorithm>
@@ -164,7 +166,7 @@ double delta_var(double alpha, double beta, double p_mu, double p_var, double r,
 /*   Underlying C++ hypothesis test function (not exported to R)     */
 /*********************************************************************/
 
-void fecrt_pee(int presum, int *predata, int preN, double preK, int postsum, int *postdata, int postN, double postK, double H0_1, double H0_2, double edt_change, double *prob_priors, int delta, int beta_iters, double *p_1, double *p_2){
+void fecrt_pee(int presum, int preN, double preK, int postsum, int postN, double postK, double H0_1, double H0_2, double *prob_priors, int delta, int beta_iters, double *p_1, double *p_2){
 	
 	double alpha1 = presum + prob_priors[1];
 	double beta1 = preN * preK + prob_priors[0];
@@ -180,12 +182,17 @@ void fecrt_pee(int presum, int *predata, int preN, double preK, int postsum, int
 	
 	double effK = postK * (double) postN;
 	
+	/*  This is now done in the wrapper as no other C function calls this with delta=1	
 	if(delta==0){
 		GetRNGstate();
 	}
+	*/
 		
 	// First hypothesis:
-	meanchange = (1.0 - H0_1) * edt_change;
+	meanchange = (1.0 - H0_1);
+	if(meanchange < 0.0){
+		meanchange = 0.0;
+	}
 	
 	if(delta==0){
 		
@@ -218,7 +225,10 @@ void fecrt_pee(int presum, int *predata, int preN, double preK, int postsum, int
 
 	}else{
 		
-		meanchange = (1.0 - H0_2) * edt_change;
+		meanchange = (1.0 - H0_2);
+		if(meanchange < 0.0){
+			meanchange = 0.0;
+		}
 		
 		if(delta==0){
 
@@ -248,17 +258,19 @@ void fecrt_pee(int presum, int *predata, int preN, double preK, int postsum, int
 		
 	}
 	
+	/*  This is now done in the wrapper as no other C function calls this with delta=1	
 	if(delta==0){
 		PutRNGstate();
 	}
-		
+	*/
+	
 }
 
 /**********************************************************************/
 /*   Underlying C++ function for WAAVP method (not exported to R)     */
 /**********************************************************************/
 
-void waavp_ci(int presum, int *predata, int preN, int postsum, int *postdata, int postN, double *ci_l, double *ci_u){
+void waavp_ci(int presum, int *predata, int preN, int postsum, int *postdata, int postN, double tail, double *ci_l, double *ci_u){
 	
 	if(postsum==0){
 
@@ -269,7 +281,7 @@ void waavp_ci(int presum, int *predata, int preN, int postsum, int *postdata, in
 		
 		int df = preN + postN - 2;
 		// Signature of qt is:  double  qt(double, double, int, int);
-		double tval = qt(0.975, (double) df, 1, 0);
+		double tval = qt(1.0 - tail, (double) df, 1, 0);
 		
 		double premu = (double) presum / (double) preN;
 		double prevarsum = 0;
@@ -314,7 +326,7 @@ void dobson_ci(int presum, int postsum, double lci_c, double uci_c, double *dobs
 /*   Underlying C++ function for conjugate Beta method (not exported to R)     */
 /*******************************************************************************/
 
-void conjbeta_ci(int preN, int presum, double preK, int postN, int postsum, double postK, int iters, double *prob_priors, double lci_b, double uci_b, double *ci_l, double *ci_u){
+void conjbeta_ci(int preN, int presum, double preK, int postN, int postsum, double postK, int iters, double *prob_priors, double tail, double *ci_l, double *ci_u){
 	
 	std::vector<double> ratio(iters, 0);
 
@@ -336,11 +348,11 @@ void conjbeta_ci(int preN, int presum, double preK, int postN, int postsum, doub
 		ratio[i] = 1.0 - m2/m1;
 //		ratio.push_back(1.0 - m2/m1);
 	}
-	int in = (int) ((double) iters * lci_b);
+	int in = (int) ((double) iters * tail);
 	std::nth_element(ratio.begin(), ratio.begin() + in, ratio.end());
 	*ci_l = ratio[in];
 
-	in = (int) ((double) iters * (1.0-uci_b));
+	in = (int) ((double) iters * tail);
 	std::nth_element(ratio.begin(), ratio.begin() + in, ratio.end(), std::greater<double>());
 	*ci_u = ratio[in];
 
@@ -350,7 +362,7 @@ void conjbeta_ci(int preN, int presum, double preK, int postN, int postsum, doub
 /*   Underlying C++ function for asymptotic methods (not exported to R)        */
 /*******************************************************************************/
 
-void asymptotic_ci(int N, int presum, int *predata, int postsum, int *postdata, double *u_ci_l, double *u_ci_u, double *p_ci_l, double *p_ci_u){
+void asymptotic_ci(int N, int presum, int *predata, int postsum, int *postdata, double tail, double *u_ci_l, double *u_ci_u, double *p_ci_l, double *p_ci_u){
 	
 	double Nd = (double) N;
 	double premu = (double) presum / Nd;
@@ -371,7 +383,10 @@ void asymptotic_ci(int N, int presum, int *predata, int postsum, int *postdata, 
 	
 	// Signature of qt is:  double  qt(double, double, int, int);
 	// double critval = qt(0.975, Nd-1.0, 1, 0);
-	double critval = 1.96;  // It is MLE so normal is appropriate
+	// But it is MLE so normal is appropriate:
+	// Signature of qnorm is:  qnorm(double, double, double, int, int)
+	double critval = qnorm((double) 1.0 - tail, 0.0, 1.0, 1, 0);
+	// double critval = 1.96;  
 	
 	double delta2u = std::pow(postmu, 2) / std::pow(premu, 4) * prevar + std::pow(premu, -2) * postvar;
 	double delta2p = delta2u + 2 * postmu / std::pow(premu, 3) * covar;
