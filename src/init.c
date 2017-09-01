@@ -13,7 +13,7 @@ static const R_CMethodDef CEntries[] = {
 
     CALLDEF(fecrt_pee_wrap, 13),
     CALLDEF(fecrt_pvals, 23),
-    CALLDEF(fecrt_power_comparison, 23),
+    CALLDEF(fecrt_power_comparison, 25),
 
     CALLDEF(pghyperR, 6),
     CALLDEF(ughyperR, 6),

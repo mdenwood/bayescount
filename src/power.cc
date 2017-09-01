@@ -9,8 +9,6 @@ Last updated by MJD February 2017
 #include <R.h>
 #include <Rmath.h>
 
-#include <iostream>
-
 // For std::nth_element used in ratio of betas MC approximation:
 #include <vector>
 #include <algorithm>
@@ -168,14 +166,10 @@ double delta_var(double alpha, double beta, double p_mu, double p_var, double r,
 
 void fecrt_pee(int presum, int preN, double preK, int postsum, int postN, double postK, double H0_1, double H0_2, double *prob_priors, int delta, int beta_iters, double *p_1, double *p_2){
 	
+	// Note: delta can take 3 values:  0=never, 1=unless_fails, 2=always
+	
 	double alpha1 = presum + prob_priors[1];
 	double beta1 = preN * preK + prob_priors[0];
-	
-	double newEprob = 0.0;
-	double newVprob = 0.0;
-	double meanchange = 0.0;
-	double alpha2 = 0.0;
-	double beta2 = 0.0;
 	
 	double tmu = alpha1 / (alpha1 + beta1);
 	double tvar = (alpha1 * beta1) / (std::pow(alpha1 + beta1, 2) * (alpha1 + beta1 + 1));
@@ -187,51 +181,40 @@ void fecrt_pee(int presum, int preN, double preK, int postsum, int postN, double
 		GetRNGstate();
 	}
 	*/
-		
+	
+	// Calculate the observed reduction
+	// Note: this does not take account of replicates and edt but neither does H0_1 and H0_2 so all fine:
+	double obsred = 1.0 - (((double) postsum) / ((double) presum));
+
 	// First hypothesis:
-	meanchange = (1.0 - H0_1);
-	if(meanchange < 0.0){
-		meanchange = 0.0;
-	}
-	
-	if(delta==0){
-		
-		double rmean=0;
-		double rvar=0;
-		double delta=0;
-		for(int i=1; i<=beta_iters; i++){
-			delta = g_fun(rbeta(alpha1, beta1), preK, postK, meanchange) - rmean;
-			rmean += delta / (double) i;
-			rvar += delta*delta;
-		}
-		newEprob = rmean;
-		newVprob = rvar / (double) (beta_iters-1);
+
+	// Only calculate the pvalue when it makes sense to do so:
+	if(obsred < H0_1){
+
+		*p_1 = 1.0;
 
 	}else{
 		
-		newEprob = delta_mean(tmu, tvar, preK, postK, meanchange);
-		newVprob = delta_var(alpha1, beta1, tmu, tvar, preK, postK, meanchange);
-	}
-	
-	beta_params(newEprob, newVprob, beta2, alpha2);
-	
-	// Note alpha and beta swapped as BNB is failures before successes and we want vice versa!
-	*p_1 = pbnb_lower(postsum, effK, alpha2, beta2);
-	
-	// Second hypothesis
-	if(postsum == 0){
-
-		*p_2 = 1.0;
-
-	}else{
-		
-		meanchange = (1.0 - H0_2);
+		double meanchange = (1.0 - H0_1);
 		if(meanchange < 0.0){
 			meanchange = 0.0;
 		}
 		
-		if(delta==0){
+		double newEprob = 0.0;
+		double newVprob = 0.0;
+		
+		bool intensive=true;
+		// Note: delta can take 3 values:  0=never, 1=unless_fails, 2=always
+		if(delta > 0){
+			
+			newEprob = delta_mean(tmu, tvar, preK, postK, meanchange);
+			newVprob = delta_var(alpha1, beta1, tmu, tvar, preK, postK, meanchange);
+			
+			// If we get a negative or zero variance then fall back to not using the delta method:
+			intensive = delta > 0 && (newEprob <= 0 || newVprob <= 0);
+		}
 
+		if(intensive){
 			double rmean=0;
 			double rvar=0;
 			double delta=0;
@@ -242,17 +225,62 @@ void fecrt_pee(int presum, int preN, double preK, int postsum, int postN, double
 			}
 			newEprob = rmean;
 			newVprob = rvar / (double) (beta_iters-1);
+		}
 		
-		}else{
+		double alpha2 = 0.0;
+		double beta2 = 0.0;		
+		beta_params(newEprob, newVprob, beta2, alpha2);
+	
+		// Note alpha and beta swapped as BNB is failures before successes and we want vice versa!
+		*p_1 = pbnb_lower(postsum, effK, alpha2, beta2);
+	
+	}
+	
+	// Second hypothesis
+
+	// Only calculate the pvalue when it makes sense to do so:
+	if(obsred >= H0_2 || postsum == 0){
+
+		*p_2 = 1.0;
+
+	}else{
+		
+		double meanchange = (1.0 - H0_2);
+		if(meanchange < 0.0){
+			meanchange = 0.0;
+		}
+		
+		double newEprob = 0.0;
+		double newVprob = 0.0;
+		
+		bool intensive=true;
+		// Note: delta can take 3 values:  0=never, 1=unless_fails, 2=always
+		if(delta > 0){
+			
 			newEprob = delta_mean(tmu, tvar, preK, postK, meanchange);
 			newVprob = delta_var(alpha1, beta1, tmu, tvar, preK, postK, meanchange);
+			
+			// If we get a negative or zero variance then fall back to not using the delta method:
+			intensive = delta > 0 && (newEprob <= 0 || newVprob <= 0);
+		}
+
+		if(intensive){
+			double rmean=0;
+			double rvar=0;
+			double delta=0;
+			for(int i=1; i<=beta_iters; i++){
+				delta = g_fun(rbeta(alpha1, beta1), preK, postK, meanchange) - rmean;
+				rmean += delta / (double) i;
+				rvar += delta*delta;
+			}
+			newEprob = rmean;
+			newVprob = rvar / (double) (beta_iters-1);
 		}
 	
-		alpha2 = 0.0;
-		beta2 = 0.0;
-	
+		double alpha2 = 0.0;
+		double beta2 = 0.0;
 		beta_params(newEprob, newVprob, alpha2, beta2);
-	
+		
 		// Note alpha and beta swapped as BNB is failures before successes and we want vice versa!
 		*p_2 = pbnb_upper(postsum, effK, beta2, alpha2);
 		

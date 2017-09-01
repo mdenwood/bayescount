@@ -45,7 +45,11 @@ fecrt_pee_wrap <- function(pre_data, post_data, H0_1=0.9, H0_2=0.95, edt_pre=1, 
 	
 	stopifnot(length(pre_data)>=1)
 	stopifnot(length(post_data)>=1)
-
+	
+	# Note: delta can take 3 values:  0=never, 1=unless_fails, 2=always
+	stopifnot(delta_method %in% 0:2)
+	
+	stopifnot(beta_iters >= 1000)
 	stopifnot(beta_iters <= 10^8)
 	# Max 10^8 - 10^6 is pretty instant and gives the same results
 
@@ -109,9 +113,12 @@ fecrt_pee_wrap <- function(pre_data, post_data, H0_1=0.9, H0_2=0.95, edt_pre=1, 
 }
 
 
-fecrt_pee_direct <- function(presum, preN, preK, postsum, postN, postK, H0_1, H0_2, prob_priors=c(1,1)){
+fecrt_pee_direct <- function(presum, preN, preK, postsum, postN, postK, H0_1, H0_2, prob_priors=c(1,1), delta_method=1, beta_iters=10^5){
 	
-	results <- .C(C_fecrt_pee_wrap, presum=as.integer(presum), preN=as.integer(preN), preK=as.numeric(preK), postsum=as.integer(postsum), postN=as.integer(postN),  postK=as.numeric(postK), H0_1=as.numeric(H0_1), H0_2=as.numeric(H0_2), prob_priors=as.numeric(prob_priors), delta=as.integer(1), beta_iters=as.integer(0), p_1=as.numeric(0), p_2=as.numeric(0))
+	# Note: delta can take 3 values:  0=never, 1=unless_fails, 2=always
+	stopifnot(delta_method %in% 0:2)
+	
+	results <- .C(C_fecrt_pee_wrap, presum=as.integer(presum), preN=as.integer(preN), preK=as.numeric(preK), postsum=as.integer(postsum), postN=as.integer(postN),  postK=as.numeric(postK), H0_1=as.numeric(H0_1), H0_2=as.numeric(H0_2), prob_priors=as.numeric(prob_priors), delta=as.integer(delta), beta_iters=as.integer(10^4), p_1=as.numeric(0), p_2=as.numeric(0))
 	return(results)
 	
 }	
@@ -125,7 +132,7 @@ fecrt_pee_direct <- function(presum, preN, preK, postsum, postN, postK, H0_1, H0
 	
 # TODO: add pooling (just adjust k sources as mean unchanged)
 	
-fecrt_power_wrap <- function(reduction, pair_type=0, preN=20, postN=20, poolsize_pre=1, poolsize_post=1, premean=10, animalk=2, efficacyk=2, prek=3, postk=prek, rep_pre=1, rep_post=1, edt_pre=1, edt_post=1, target=0.95, tol=0.05, tail=0.025, iterations=10000, prob_priors=c(1,1)){
+fecrt_power_wrap <- function(reduction, pair_type=0, preN=20, postN=20, poolsize_pre=1, poolsize_post=1, premean=10, animalk=2, efficacyk=2, prek=3, postk=prek, rep_pre=1, rep_post=1, edt_pre=1, edt_post=1, target=0.95, tol=0.05, tail=0.025, iterations=10000, prob_priors=c(1,1), delta_method=1, beta_iters=10^4){
 
 	stopifnot(length(reduction)==1 && reduction <= 1 && reduction > -Inf)
 	stopifnot(length(pair_type)==1 && pair_type >= 0)
@@ -147,6 +154,14 @@ fecrt_power_wrap <- function(reduction, pair_type=0, preN=20, postN=20, poolsize
 	stopifnot(length(tail)==1 && tail > 0 && tail < 1)
 	stopifnot(length(iterations)==1 && iterations > 0 && round(iterations)==iterations)
 	stopifnot(length(prob_priors)==2 && is.numeric(prob_priors) && all(prob_priors > 0))
+	
+	# Note: delta can take 3 values:  0=never, 1=unless_fails, 2=always
+	stopifnot(delta_method %in% 0:2)
+	if(delta_method == 0){
+		cat("Note:  Not using the delta method approximation at all will dramatically increase computation time\n")
+	}
+	beta_iters <- as.integer(beta_iters)
+	stopifnot(beta_iters >= 1000)
 	
 	H0_1 <- target-tol
 	H0_2 <- target
@@ -218,7 +233,7 @@ fecrt_power_wrap <- function(reduction, pair_type=0, preN=20, postN=20, poolsize
 	results <- .C(C_fecrt_power_comparison, iters=as.integer(iterations), preN=as.integer(preN), postN=as.integer(postN), maxN=as.integer(max(preN, postN)), rep_pre=as.integer(rep_pre),
 	rep_post=as.integer(rep_post), edt_pre=as.double(edt_pre), edt_post=as.double(edt_post), premean=as.double(premean), reduction=as.double(reduction), pair_type=as.integer(pair_type),
 	animalk=as.double(animalk), efficacyk=as.double(efficacyk), prek=as.double(prek), postk=as.double(postk), H0_1=as.double(H0_1), H0_2=as.double(H0_2), tail=as.double(tail),
-	prob_priors=as.double(prob_priors), predata=as.integer(rep(0, max(preN, postN))), postdata=as.integer(rep(0, max(preN, postN))), classifications=as.integer(rep(0, classifications)),
+	prob_priors=as.double(prob_priors), delta=as.integer(delta_method), beta_iters=as.integer(beta_iters), predata=as.integer(rep(0, max(preN, postN))), postdata=as.integer(rep(0, max(preN, postN))), classifications=as.integer(rep(0, classifications)),
 	obsred=as.double(rep(0, iterations)))
 
 	return(results)

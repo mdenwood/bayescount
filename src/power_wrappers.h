@@ -22,6 +22,6 @@ void fecrt_pee_wrap(int *preN, int *presum, double *preK, int *postN, int *posts
 
 void fecrt_pvals(int *iters, int *preN, int *postN, int *maxN, double *premean, double *reduction, double *edt_change, double *animalk, double *prek, double *postk, double *H0_1, double *H0_2, int *H0_N, double *prob_priors, double *kchange, double *truek, int *usetruek, int *delta, int *beta_iters, int *predata, int *postdata, double *p_1, double *p_2);
 
-void fecrt_power_comparison(int *iters, int *preN, int *postN, int *maxN, int *rep_pre, int *rep_post, double *edt_pre, double *edt_post, double *premean, double *reduction, int *pairtype, double *animalk, double *efficacyk, double *prek, double *postk, double *H0_1, double *H0_2, double *tail, double *prob_priors, int *predata, int *postdata, int *classifications, double *obsred);
+void fecrt_power_comparison(int *iters, int *preN, int *postN, int *maxN, int *rep_pre, int *rep_post, double *edt_pre, double *edt_post, double *premean, double *reduction, int *pairtype, double *animalk, double *efficacyk, double *prek, double *postk, double *H0_1, double *H0_2, double *tail, double *prob_priors, int *delta, int *beta_iters, int *predata, int *postdata, int *classifications, double *obsred);
 
 

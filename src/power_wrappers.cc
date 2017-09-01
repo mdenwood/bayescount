@@ -133,7 +133,7 @@ extern "C" {
 	/*   Power comparison for different tests        */
 	/*************************************************/
 	
-	void fecrt_power_comparison(int *iters, int *preN, int *postN, int *maxN, int *rep_pre, int *rep_post, double *edt_pre, double *edt_post, double *premean, double *reduction, int *pairtype, double *animalk, double *efficacyk, double *prek, double *postk, double *H0_1, double *H0_2, double *tail, double *prob_priors, int *predata, int *postdata, int *classifications, double *obsred){
+	void fecrt_power_comparison(int *iters, int *preN, int *postN, int *maxN, int *rep_pre, int *rep_post, double *edt_pre, double *edt_post, double *premean, double *reduction, int *pairtype, double *animalk, double *efficacyk, double *prek, double *postk, double *H0_1, double *H0_2, double *tail, double *prob_priors, int *delta, int *beta_iters, int *predata, int *postdata, int *classifications, double *obsred){
 		
 		// Note:  predata and postdata must have length >= max(preN, postN)
 		// Pre and post data will be simulated for max(preN, postN) but only used for preN / postN respectively
@@ -148,6 +148,8 @@ extern "C" {
 		double p1, p2, b1, b2, w1, w2, d1, d2;
 		
 		// Resolve pointers (and some casts) once:
+		int delta_method = delta[0];  // Note: delta_method can take 3 values:  0=never, 1=unless_fails, 2=always but should probably be 1 or 2 here!
+		int beta_it = beta_iters[0];  // Probably don't want too many iterations if the delta method fails!
 		int pair_type = pairtype[0];
 		int pre_N = preN[0];
 		int post_N = postN[0];
@@ -303,8 +305,8 @@ extern "C" {
 			}
 			
 			// Get pee results:
-			fecrt_pee(presum, pre_N, est_prek, postsum, post_N, est_postk, lt, ut, prob_priors, 1, 0, &p1, &p2);
-				
+			fecrt_pee(presum, pre_N, est_prek, postsum, post_N, est_postk, lt, ut, prob_priors, delta_method, beta_it, &p1, &p2);
+			
 			// Results are 1: reduced, 2: inconclusive, 3: marginal, 4: adequate, 5: method failure - but indexing starts at 1
 			if(est_prek < 0 || est_postk < 0){
 				r = 4;
@@ -317,7 +319,7 @@ extern "C" {
 			}else if(p2 > pt && p1 <= pt){
 				r = 3;
 			}else{
-				Rprintf("Failure values:  p1: %f, p2: %f  (presum: %i, preN: %i, prek: %f, postsum: %i, postN: %i, postk: %f, lt: %f, ut: %f)\n", p1, p2, presum, pre_N, est_prek, postsum, post_N, est_postk, lt, ut);
+				Rprintf("Failure values (with delta_method=%i):  p1: %f, p2: %f  (presum: %i, preN: %i, prek: %f, postsum: %i, postN: %i, postk: %f, lt: %f, ut: %f)\n", delta_method, p1, p2, presum, pre_N, est_prek, postsum, post_N, est_postk, lt, ut);
 				r = 4;
 			}
 			classifications[r]++;
