@@ -35,7 +35,7 @@ maximise.likelihood(data=stop("Data must be specified"),
 data <- rpois(100, rgamma(100, shape=1, scale=8))
 data[1:15] <- 0
 
-maximise.likelihood(data, "ZIGP")
+#maximise.likelihood(data, "ZIGP")
 
 }
 \keyword{models}

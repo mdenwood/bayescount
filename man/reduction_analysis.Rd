@@ -66,7 +66,7 @@ Analyses two sets of count data for using any of (1) Christian approach, (2) my 
 Should probably discuss different methods here
 }
 \examples{
-reduction_analysis()
+#reduction_analysis()
 }
 \references{
 M. J. Denwood, S. W. J. Reid, S. Love, M. K. Nielsen, L. Matthews, I. J. McKendrick, and G. T. Innocent. Comparison of three alternative methods for analysis of equine Faecal Egg Count Reduction Test data. Prev. Vet. Med. (2009), doi:10.1016/j.prevetmed.2009.11.009

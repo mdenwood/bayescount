@@ -59,7 +59,7 @@ count_power <- function(type='fec', cutoff=if('fec') 400 else 95, alternative='t
 	
 		confidence <<- fecrt.confidence(mean, red, g.faeces, sens, replicates, ani, coeffr, coeffi, cvg, coeffr, coeffi, cvg, TRUE, upper.interval=qm)$ci[2]
 	
-		if(confidence>0.8) break
+#		if(confidence>0.8) break
 	#}
 
 	results <- rbind(results, c(thresh, sens, ani, red, replicates))

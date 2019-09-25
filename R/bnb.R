@@ -13,7 +13,7 @@ pbnb2 <- function(q, k, alpha, beta, lower.tail = TRUE){
 	
 	stopifnot(length(q)==1)
 	if(lower.tail){
-		p <- .C(C_pbnb_lower_wrap, as.integer(q), as.double(k), as.double(alpha), as.double(beta), p = double(1))$p
+		p <- .C_OLD(C_pbnb_lower_wrap, as.integer(q), as.double(k), as.double(alpha), as.double(beta), p = double(1))$p
 	}
 	return(p)
 }
@@ -27,11 +27,11 @@ function (q, a, k, N, lower.tail = TRUE, log.p = FALSE)
     k <- rep(k, length.out = M)
     N <- rep(N, length.out = M)
     if (lower.tail == TRUE) {
-        value <- .C(C_pghyperR, as.integer(q), as.double(a), 
+        value <- .C_OLD(C_pghyperR, as.integer(q), as.double(a), 
             as.double(k), as.double(N), as.integer(M), val = double(M))$val
     }
     else {
-        value <- .C(C_ughyperR, as.integer(q), as.double(a), 
+        value <- .C_OLD(C_ughyperR, as.integer(q), as.double(a), 
             as.double(k), as.double(N), as.integer(M), val = double(M))$val
     }
     if (log.p == TRUE) 

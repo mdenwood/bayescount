@@ -1,5 +1,5 @@
 Package: bayescount
-Version: 1.0.0-1
+Version: 1.0.0-8
 Date: 2017-03-20
 Title: Statistical Analyses and Power Calculations for Count Data and Faecal Egg Count Reduction Tests (FECRT)
 Authors@R: c(person("Matthew", "Denwood", role=c("aut","cre"), email="md@sund.ku.dk"),
@@ -10,9 +10,20 @@ Imports:
     parallel,
     stats,
     utils,
-	runjags
+	runjags,
+	Rcpp (>= 1.0.0)
 Suggests:
-	rjags
+	rjags,
+	runjags,
+	knitr,
+	shiny,
+	shinythemes,
+	dplyr,
+	tibble,
+	tidyr,
+	ggplot2
+VignetteBuilder: knitr
+LinkingTo: Rcpp
 Description: Power calculations and hypothesis testing for the difference in mean of two negative binomial distributions
 	A set of functions to allow analysis of count data (such
     as faecal egg count data) using Bayesian MCMC methods.  Returns
@@ -24,7 +35,7 @@ Description: Power calculations and hypothesis testing for the difference in mea
     provided, using non-parametric bootstrapping as well as using
     Bayesian MCMC.  Functions to perform power analyses for faecal
     egg counts (including FECRT) are also provided.
-	A working installation of JAGS (http://mcmc-jags.sourceforge.net) is required for MCMC-based methods
+	A working installation of JAGS (<http://mcmc-jags.sourceforge.net>) is required for MCMC-based methods
 License: GPL-2
 URL: http://bayescount.sourceforge.net
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.1

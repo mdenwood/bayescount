@@ -3,6 +3,9 @@ set.seed(2017-08-29)
 
 library('bayescount')
 
+if(FALSE){
+	
+
 combinek <- function(a, b) ((a*b)/(a+b+1))
 combinekk <- function(a, b, c) combinek(a, combinek(b, c))
 
@@ -233,3 +236,5 @@ stopifnot(chisq.test(rbind(r_class[c(1,2,4)], c_class[c(1,2,4)]))$p.value > 0.05
 
 ### Still need to add and check complex/paired pooling
 
+
+}

@@ -1,6 +1,7 @@
 /*
 This file was adapted from SuppDists version 1.1-9
-[Some code not necessary for implementation of the generalised hypergeometric has been removed]
+- Some code not necessary for implementation of the generalised hypergeometric has been removed
+- Signature for first argument in hypergeometric functions has been changed from int to long long
 Original file is copyright of Bob Wheeler, licensed GPL>=2
 https://CRAN.R-project.org/package=SuppDists
 Last updated by MJD February 2017 as part of the bayescount package
@@ -11,6 +12,8 @@ Last updated by MJD February 2017 as part of the bayescount package
 #include <new>
 #include <cmath>
 #include <cstdlib>
+
+
 
 // for Solaris
 using namespace std;
@@ -210,12 +213,13 @@ void Permute(
 */
 
 
+
  	// Normal approximation to the hypergeometric distribution function due to Peizer
 	// See Ling, R.F. and Pratt, J.W. (1984) The accuracy of Peizer approximations
 	//  to the hypergeometric distribution, with comparisons to some other 
 	//  approximations. JASA 79-385. 49-60.
 double PeizerHypergeometric(
-	int x,	  // Number of marked items in sample
+	long long x,	  // Number of marked items in sample
 	int S,	  // Sample size
 	int n,	  // Total number of marked items
 	int N	  // Total number of items
@@ -270,6 +274,237 @@ bool isint(
 {
 	return x equals floor(x);
 }      
+
+
+
+/* These are additional implementations using long long rather than int for bayescount */
+
+bool checkHyperArgument(
+	long long k,
+	double a, 				// Sample size
+	double m,      	// Total number of marked items
+	double N,       		// Total number of items
+	hyperType variety
+)
+{
+
+	switch (variety) {
+		case classic:
+			return (maxm(0,(int)(a+m-N))<=k && k<=minm((int)a,(int)m));
+			break;
+		case IAi:
+			return (0<=k && k<=(int)m);
+			break;
+		case IAii:
+			return (0<=k && k<=(int)a);
+			break;
+		case IB:		// Specified 1.0<N to avoid problems with small parameters
+			return (0<=k);
+			break;
+		case IIA:
+			return (0<=k && k<=(int)m);
+			break;
+		case IIB:
+			return (0<=k);
+			break;
+		case IIIA:
+			return (0<=k && k<=(int)a);
+			break;
+		case IIIB:
+			return (0<=k);
+			break;
+		case IV:
+			return (0<=k);
+			break;
+		case noType:
+			break;
+	}
+	return false;
+}
+
+double phypergeometric(
+	long long x,		// Number of marked items in sample
+	int a, 				// Sample size
+	int n,      	// Total number of marked items
+	int N       		// Total number of items
+)
+{
+	if (x<maxm(0,a-(N-n)) || x>minm(a,n)) 
+		return NA_REAL;
+
+		// interchange n and a to get the fewest terms to sum
+	if (a<n) {
+		int k=a;
+		a=n;
+		n=k;
+	}
+
+	if (x equals n) {
+		return 1.0;
+	}
+
+		// Switch tails if necessesary to minimize number of terms to sum
+	int xmin=maxm(0,n+a-N);
+	bool lowerTail=true;
+	if (x-xmin>n-x) {					  
+		x=n-x-1;
+		a=N-a;
+		xmin=maxm(0,n+a-N);
+		lowerTail=false;
+	}
+
+	int na_N=n+a-N;	
+	double logP=loggamma((double)(a+1))+loggamma((double)(N-a+1))+loggamma((double)(n+1))+
+		loggamma((double)(N-n+1))-loggamma((double)(N+1))-loggamma((double)(a-xmin+1))-
+		loggamma((double)(n-xmin+1))-loggamma(xmin-na_N+1);
+
+	if (xmin!=0) {
+		logP-=loggamma((double)(xmin+1));
+	}
+
+		// Use normal approximation if can't do it
+	if (! R_FINITE(logP)){
+		double p=PeizerHypergeometric(x,a,n,N);
+		return lowerTail?p:1.0-p;
+	}
+
+	double term=1.0;
+	double sum=1.0;
+		// These are the terms of F[-a,-n;N-n-a+1;a], where F is the Gaussian
+		//  hypergeometric function -- i.e. coefficients of x^i in the expansion.
+	for (long long k=xmin;k<x;k++) { 
+		term*=((double)(a-k)*(double)(n-k))/((double)(k+1)*(double)(k+1-na_N));
+		sum+=term;
+	}
+		// Use normal aapproximation if can't do it
+	if (! R_FINITE(sum)){
+		double p=PeizerHypergeometric(x,a,n,N);
+		return lowerTail?p:1.0-p;
+	}
+
+	logP+=log(sum);
+	if (logP<-MAXEXP) {
+		return lowerTail?0.0:1.0;
+	}
+	else {
+		return lowerTail?exp(logP):1.0-exp(logP);
+	}
+}
+
+double qhypergeometric(
+	long long x,		// Number of marked items in sample
+	int a, 				// Sample size
+	int n,      	// Total number of marked items
+	int N       		// Total number of items
+)
+{
+	return 1.0-phypergeometric(x,a,n,N);
+}
+
+ double pgenhypergeometric(
+	long long x,	 
+	double a,	 
+	double n,	 
+	double N,
+	hyperType variety	
+)
+{
+	double logP=0;
+	double b=0;
+	double temp=0;
+	double P=0;
+
+	switch (variety) {
+		case IAii:
+			temp=a;
+			a=n;
+			n=temp;
+			variety =IAi;
+		case IAi:
+			if (x equals (int)n) {
+				return 1.0;
+			}
+			b=N-a;
+			logP=loggamma(b+1.0)+loggamma(N-n+1.0)-loggamma(b-n+1.0)-loggamma(N+1.0);
+			break;
+		case IIIA:
+			temp=a;
+			a=n;
+			n=temp;
+			variety =IIA;
+		case IIA:
+			if (x equals (int)n) {
+				return 1.0;
+			}
+			b=N-a;
+			logP=loggamma(-b+n)+loggamma(-N)-loggamma(-b)-loggamma(-N+n);
+			break;
+		case IIIB:
+			temp=a;
+			a=n;
+			n=temp;
+			variety=IIB;
+		case IIB:
+			b=N-a;
+			// Can't use this because n is not an integer
+			//logP=loggamma(-b+n)+loggamma(-N)-loggamma(-b)-loggamma(-N+n);
+			logP=log(1.0/GaussianHypergometricFcn(-n,-a,b-n+1.0,1.0));
+			break;
+		case IB:
+			b=N-a;
+			logP=loggamma(b+1.0)+loggamma(N-n+1.0)-loggamma(b-n+1.0)-loggamma(N+1.0);
+			break;
+		case IV:
+			b=N-a;
+			logP=loggamma(b+1.0)+loggamma(N-n+1.0)-loggamma(b-n+1.0)-loggamma(N+1.0);
+			break;
+		default:
+			break;
+	}
+
+	double sum=1.0;
+	double Tr=1.0;
+	double bn=b-n;
+	
+	for (long long i=0;i<x;i++) {
+		double r=(double)i;
+		double rp=(double)(i+1);
+		Tr*=((r-a)*(r-n))/(rp*(bn+rp));
+		sum+=Tr;
+	}
+
+	if (! R_FINITE(sum)){
+		return NA_REAL;
+	}
+		
+	logP += (double) log(sum);
+	
+	if (logP < -MAXEXP) {
+		return 0.0;
+	}
+	else if (logP > 0) {
+		return 1.0;
+	}
+	else {
+		return exp(logP);
+	}
+
+
+}
+
+ double qgenhypergeometric(
+	long long x,	 
+	double a,	 
+	double n,	 
+	double N,
+	hyperType variety
+)
+{
+	return 1.0-pgenhypergeometric(x,a,n,N,variety);
+}
+
+/* End additional */
+
 
 
 	// Finds the type of hypergeometric
@@ -1020,6 +1255,8 @@ void sghyper(
 			break;
 	}
 
+	Rprintf("%f\n", logP);
+	
  	double sum=1.0;
 	double Tr=1.0;
 	double bn=b-n;
@@ -1031,13 +1268,15 @@ void sghyper(
 		sum+=Tr;
 	}
 
+	Rprintf("%f\n", sum);
+	
 	if (variety equals IIB) {
 		P*=sum;
 		return minm(P,1.0);	 // Occasional numerical error
 	}
 	else {
 		logP+=log(sum);
-
+		
 		if (logP<-MAXEXP) {
 			return 0.0;
 		}

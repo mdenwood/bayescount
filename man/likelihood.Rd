@@ -36,7 +36,7 @@ likelihood(model, data, mean=NA, variance=NA,
 # calculate the likelihood of obtaining a set of count data from 
 # a zero-inflated Poisson distribution with set mean and zero-inflation 
 # values
-
+\dontrun{
 data <- rpois(100, 10)
 data[1:15] <- 0
 
@@ -45,7 +45,7 @@ likelihood('ZIP', data, mean=10, zi=15)
 # now calculate the likelihood for the same data using an MCMC object 
 # to provide the values for mean and zero-inflation
 
-\dontrun{
+
 values <- bayescount.single(data, model='ZISP', raw.output=TRUE)
 means <- c(values[,'mean'][[1]], values[,'mean'][[2]])
 zis <- (1-c(values[,'prob'][[1]], values[,'prob'][[2]]))*100 

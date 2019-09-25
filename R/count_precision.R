@@ -118,7 +118,7 @@ count_precision <- function(meanepg=200, g.faeces=3, sensitivity=1/25, replicate
 				stop()
 		
 			}else{
-				mcout <- .C(C_precision_count, as.numeric(meanepg), as.numeric(g.faeces), as.numeric(sensitivity), as.integer(replicates), as.integer(animals), as.numeric(coeffvarmcm), as.numeric(coeffvarrep), as.numeric(coeffvarind), as.numeric(coeffvargroup), as.integer(iterations), as.integer(feedback), as.numeric(numeric(iterations)))
+				mcout <- .C_OLD(C_precision_count, as.numeric(meanepg), as.numeric(g.faeces), as.numeric(sensitivity), as.integer(replicates), as.integer(animals), as.numeric(coeffvarmcm), as.numeric(coeffvarrep), as.numeric(coeffvarind), as.numeric(coeffvargroup), as.integer(iterations), as.integer(feedback), as.numeric(numeric(iterations)))
 
 			}
 

@@ -346,15 +346,7 @@ count_analysis <- function(data = stop("Data must be specified"), model="ZILP", 
 		# nb <- exp(-(log(b) * a)); where nb = jags 'b' and b = r 'b' (jags 'a' = r 'a')
 	
 		#The hardest part of this analysis turns out to be converting between R 
-		#and WinBUGS versions of the Weibull distribution: where R uses f (t) = 
-		#(a/b)(t/b)a−1 exp( 
-		#−(t/b) 
-		#a 
-		#), WinBUGS uses f (t) = ν λtν −1 exp( 
-		#−λt 
-		#ν 
-		#). Match- 
-		#ing up terms and doing some algebra shows that ν = a and λ = b−a or b = λ−1/a . 
+		#and WinBUGS versions of the Weibull distribution:
 		#http://www.zoology.ufl.edu/bolker/emdbook/chap7A.pdf
 	
 	

@@ -52,16 +52,16 @@ hyperType typeHyper(
 	double N       		// Total number of items
 );
 bool checkHyperArgument(
-	int k,
+	long long k,
 	double a, 				// Sample size
 	double m,      	// Total number of marked items
 	double N,       		// Total number of items
 	hyperType variety
 );
-double qhypergeometric(int x,int a,int n,int N);
-double phypergeometric(int x,int a,int n,int N);
-double qgenhypergeometric(int x,double a,double m,double N,hyperType variety);
-double pgenhypergeometric(int x,double a,double m,double N,hyperType variety);
+double qhypergeometric(long long x,int a,int n,int N);
+double phypergeometric(long long x,int a,int n,int N);
+double qgenhypergeometric(long long x,double a,double m,double N,hyperType variety);
+double pgenhypergeometric(long long x,double a,double m,double N,hyperType variety);
 //*********************************************//
 
 	/* Prototypes for dist functions */

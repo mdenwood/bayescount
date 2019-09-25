@@ -1,15 +1,21 @@
-useDynLib('bayescount', .registration = TRUE, .fixes = "C_")
+useDynLib(bayescount, .registration=TRUE)
+
+exportPattern("^[[:alpha:]]+")
 
 import(
 
 	stats,
 	utils,
 	parallel,
-	runjags
+	runjags,
+	Rcpp
 	
 )
 
 export(
+	
+	shiny_launch,
+	methodcomp,
 	
 	count_analysis,
 	count.analysis,		# backwards compatibility v0.99

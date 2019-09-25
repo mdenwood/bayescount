@@ -64,7 +64,7 @@ reduction_precision <- function(meanepg=200, reduction = 95, g.faeces=3, sensiti
 
 	if(true.sample){
 	
-		out <- .C(C_precision_reduction, as.numeric(premean), as.numeric(reduction), as.integer(replicates), as.integer(animals), as.numeric(pre.coeffvarrep), as.numeric(pre.coeffvarind), as.numeric(pre.coeffvargroup), as.numeric(post.coeffvarrep), as.numeric(post.coeffvarind), as.numeric(post.coeffvargroup), as.integer(iterations), as.integer(feedback), numeric(iterations))
+		out <- .C_OLD(C_precision_reduction, as.numeric(premean), as.numeric(reduction), as.integer(replicates), as.integer(animals), as.numeric(pre.coeffvarrep), as.numeric(pre.coeffvarind), as.numeric(pre.coeffvargroup), as.numeric(post.coeffvarrep), as.numeric(post.coeffvarind), as.numeric(post.coeffvargroup), as.integer(iterations), as.integer(feedback), numeric(iterations))
 
 		lo <- length(out)
 		meanreds <- out[[lo]]

@@ -64,7 +64,7 @@ Does not require Just Another Gibbs Sampler (JAGS) (see http://mcmc-jags.sourcef
 Should probably discuss different methods here
 }
 \examples{
-reduction_model()
+#reduction_model()
 }
 \references{
 M. J. Denwood, S. W. J. Reid, S. Love, M. K. Nielsen, L. Matthews, I. J. McKendrick, and G. T. Innocent. Comparison of three alternative methods for analysis of equine Faecal Egg Count Reduction Test data. Prev. Vet. Med. (2009), doi:10.1016/j.prevetmed.2009.11.009
