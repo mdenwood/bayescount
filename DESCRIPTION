@@ -1,5 +1,5 @@
 Package: bayescount
-Version: 1.0.0-8
+Version: 1.0.0-9
 Date: 2017-03-20
 Title: Statistical Analyses and Power Calculations for Count Data and Faecal Egg Count Reduction Tests (FECRT)
 Authors@R: c(person("Matthew", "Denwood", role=c("aut","cre"), email="md@sund.ku.dk"),
