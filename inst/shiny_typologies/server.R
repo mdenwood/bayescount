@@ -14,48 +14,17 @@ options(stringsAsFactors=FALSE)
 # Permanent settings:
 citers <- 10^3
 
-pubdate <- "2019-09-24"
+# Read settings from a website so they can be dynamically altered:
+load(url('https://ku-awdc.github.io/rsc/shinyresults.Rdata'))
 
+pubdate <- pardate
 
+# Not currently using:
+logslidvals <- c(-2,2,0.025)
 
-frameworks <- list(
-	Denwood = paste0('<p>Under the Denwood et al classification system, typologies are classified as:</p><p>Typologies 1a/1b/1c:  Reduced Efficacy</p><p>Typologies 2a/2b/2c:  Inconclusive</p><p>Typology 3:  Borderline Efficacy</p><p>Typologies 4a/4b/4c:  Adequate Efficacy</p>'),
-	Kaplan = paste0('<p>Under the Kaplan et al classification system, typologies are classified as:</p><p>Typologies 1a/1b:  Resistant</p><p>Typologies 1c/3:  Low Resistant</p><p>Typologies 2a/2b/2c:  Inconclusive</p><p>Typologies 4a/4b/4c:  Susceptible</p>'),
-	Coles = paste0('<p>Under the (modified) Coles et al classification system, typologies are classified as:</p><p>Typologies 1a/1b/2a/2b:  Resistant</p><p>Typologies 1c/2c/3/4a:  Suspected Resistant (here re-classified as inconclusive)</p><p>Typologies 4b/4c:  Susceptible</p>')
-)
-
-classifications <- list(
-	Denwood = list(reduced = c('1a','1b','1ab','1c'), inconclusive = c('2a','2b','2c','SumPost0'), borderline = '3', adequate = c('4a','4b','4c','4bc')),
-	Kaplan = list(resistant = c('1a','1b','1ab'), inconclusive = c('2a','2b','2c','SumPost0'), lowresistant = c('1c','3'), susceptible = c('4a','4b','4c','4bc')),
-	Coles = list(resistant = c('1a','1b','1ab','2a','2b'), inconclusive = c('1c','2c','3','4a','SumPost0'), susceptible = c('4b','4c','4bc'))
-	)
-	
-
-# In-built k settings:
-kparameters <- tribble(~Species, ~k1, ~k2, ~cor,
-			"Sheep", 1.2, 0.7, 0.5,
-			"Cattle", 1.1, 0.5, 0.1,
-			"Calves", 1.5, 0.4, 0.1,
-			"Equine", 0.6, 0.6, 0.5
-			)
-## TODO: build this from kparameters directly
-kstring <- list(
-	Sheep = "<p>Pre-set over-dispersion parameters for Sheep are:</p><p>k1: 1.2</p><p>k2: 0.7</p><p>correlation: 0.5</p>",
-	Cattle = "<p>Pre-set over-dispersion parameters for Cattle are:</p><p>k1: 1.1</p><p>k2: 0.5</p><p>correlation: 0.1</p>",
-	Calves = "<p>Pre-set over-dispersion parameters for Calves are:</p><p>k1: 1.5</p><p>k2: 0.4</p><p>correlation: 0.1</p>",
-	Equine = "<p>Pre-set over-dispersion parameters for Horses are:</p><p>k1: 0.6</p><p>k2: 0.6</p><p>correlation: 0.5</p>",
-	Custom = "<p>Enter custom over-dispersion parameters using the sliders on the left</p>"
-	)
 
 getsimres <- function(simpars){
 
-	if(simpars$kpreset!="Custom"){
-		simpars$k1 <- NULL
-		simpars$k2 <- NULL
-		simpars$cor <- NULL
-		simpars <- c(simpars, as.list(kparameters %>% filter(Species==simpars$kpreset) %>% select(-Species)))
-	}
-	
 	tsp <- as.data.frame(simpars) %>%
 		mutate(ti=target, ta=(target-delta), ko1=k1, ko2=k2, kd=k2/k1) %>%
 		mutate(kc = sqrt(ko1*ko2) / cor, ku1 = ((kc+1)*ko1)/(kc-ko1), ku2 = ((kc+1)*ko2)/(kc-ko2))
@@ -79,67 +48,136 @@ getsimres <- function(simpars){
 
 	res <- do.call('powersim_paired', args)
 	
-	res$Method[res$Method=='Levecke'] <- 'Gamma'
-	res$Method[res$Method=='MLE'] <- 'Asymptotic'
-	
-	return(list(simpars=simpars, simres=res))
+    res$Classification <- factor(res$Classification)
+    levels(res$Classification) <- classifications[["Typologies"]]
+    stopifnot(all(!is.na(res$Classification)))
+  
+    res$Method[res$Method=='Levecke'] <- 'Gamma'
+    res$Method[res$Method=='MLE'] <- 'Asymptotic'
+  
+    typres <- res %>%
+      mutate(Efficacy = 1-Reduction) %>%
+      group_by(Method, Efficacy, Classification) %>%
+      summarise(Number = n()) %>%
+      # Need to join with full dataset:
+      full_join( crossing(Efficacy=1-args$rvs, Method=unique(res$Method), Classification=factor(levels(res$Classification), levels=levels(res$Classification))) , by = c("Method", "Efficacy", "Classification")) %>%
+      # Any blank numbers are zeros:
+      mutate(Number = ifelse(is.na(Number), 0, Number)) %>%
+      group_by(Method, Efficacy) %>%
+      mutate(Proportion = Number / sum(Number)) %>%
+      ungroup()
+ 	
+	return(list(simpars=simpars, simres=typres))
 }
 
-inits <- getsimres(list(StudyType='Simple Paired', N=10, mu=20, target=99/100, delta=4/100, pthresh=0.025, kpreset='Sheep'))
+inits <- simparameters %>% slice(1)
+initsimpars <- list(N=inits$N, mu=inits$mu, target=inits$Target/100, delta=inits$Delta/100, pthresh=0.025, k1=inits$k1, k2=inits$k2, cor=inits$cor)
 
 
 function(input, output, session) {
 	
-	rv <- reactiveValues(simpars=inits$simpars, storedres=inits$simres)
+	rv <- reactiveValues(simpars=initsimpars, storedres=simresults[[1]], calculating=FALSE)
 	
+	observe({
+		preset <- input$preset
+		
+		m <- which(preset==presets)
+		stopifnot(length(m)==1)
+		sp <- simparameters %>% slice(m)
+		updateNumericInput(session, "N", value=sp$N)
+		updateNumericInput(session, "mu", value=sp$mu)
+		updateNumericInput(session, "target", value=sp$Target)
+		updateNumericInput(session, "delta", value=sp$Delta)
+		updateNumericInput(session, "pthresh", value=0.025)
+		#updateSliderInput(session, "k1", value=log10(sp$k1))
+		#updateSliderInput(session, "k2", value=log10(sp$k2))
+		#updateSliderInput(session, "cor", value=sp$cor)
+		updateNumericInput(session, "k1", value=sp$k1)
+		updateNumericInput(session, "k2", value=sp$k2)
+		updateNumericInput(session, "cor", value=sp$cor)
+		
+	})
+
 	observeEvent(input$simulate, {
 		
-		simpars <- list(StudyType=input$type, N=input$N, mu=input$mu, target=input$target/100, delta=input$delta/100, pthresh=input$pthresh, kpreset=input$kpreset, k1=10^input$k1, k2=10^input$k2, cor=input$cor)
+		# TODO: work out how to set a message saying 'calculating'
+		rv$calculating <- TRUE
 		
-		newres <- getsimres(simpars)
+		#simpars <- list(StudyType=input$type, N=input$N, mu=input$mu, target=input$target/100, delta=input$delta/100, pthresh=input$pthresh, kpreset=input$kpreset, k1=10^input$k1, k2=10^input$k2, cor=input$cor)
+		simpars <- list(N=input$N, mu=input$mu, target=input$target/100, delta=input$delta/100, pthresh=input$pthresh, k1=input$k1, k2=input$k2, cor=input$cor)
 		
-		rv$storedres <- newres$simres
-		rv$simpars <- newres$simpars
+		# Find an existing set if possible:
+		matchpars <- simparameters %>% filter(N==input$N, mu==input$mu, Target==input$target, Delta==input$delta, k1==input$k1, k2==input$k2, cor==input$cor)
+		
+		stopifnot(nrow(matchpars)<=1)
+		if(input$pthresh==0.025 && nrow(matchpars)==1){
+			rv$storedres <- simresults[[matchpars$Set]]
+		}else{
+			newres <- getsimres(simpars)
+			rv$storedres <- newres$simres
+		}
+		
+		rv$simpars <- simpars
+		
+		rv$calculating <- FALSE
 		
 	})
 	
+	
 	fluidPage(
-		output$kvalues <- renderText(kstring[[input$kpreset]]),
-		output$classifications <- renderText(paste0(frameworks[[input$statframe]], if(input$statmethod %in% c("Gamma","WAAVP","Asymptotic")) paste0("<p>NOTE: any datasets where sum(post)==0 will also be classified as inconclusive using the ", input$statmethod, " method as 95% CI are incalculable</p>")))
+		output$classifications <- renderText(frameworks[[input$statframe]])
 	)
  	
-	output$typologies <- renderImage({
-		list(src="typologies.png", contentType = 'image/png', width = 400, height = 600, alt = "Typologies image")
-	}, deleteFile=FALSE)
+	observe({
+		statframe <- input$statframe
+		
+		wd <- 900
+		he <- 600
+		
+		if(input$statframe=="Denwood"){
+			output$typologies <- renderImage({
+				list(src="typologies_denwood.png", contentType = 'image/png', width = wd, height = he, alt = "Typologies image")
+			}, deleteFile=FALSE)
+		}else if(input$statframe=="Typologies"){
+			output$typologies <- renderImage({
+				list(src="typologies_raw.png", contentType = 'image/png', width = wd, height = he, alt = "Typologies image")
+			}, deleteFile=FALSE)
+		}else if(input$statframe=="Kaplan"){
+			output$typologies <- renderImage({
+				list(src="typologies_kaplan.png", contentType = 'image/png', width = wd, height = he, alt = "Typologies image")
+			}, deleteFile=FALSE)
+		}else if(input$statframe=="Coles"){
+			output$typologies <- renderImage({
+				list(src="typologies_coles.png", contentType = 'image/png', width = wd, height = he, alt = "Typologies image")
+			}, deleteFile=FALSE)
+		}else{
+			stop('Unrecognised statistical framework')
+		}
+		
+	})
+	
 	
 	output$noninc_plot <- renderPlot({
 		
-		res <- rv$storedres
-		
-		res$Classification <- factor(res$Classification)
-		levels(res$Classification) <- classifications[[input$statframe]]
+		typres <- rv$storedres
+		levels(typres$Classification) <- classifications[[input$statframe]]
 		
 		methodsusing <- input$statmethod
 		
-		typres <- res %>%
+		typres <- typres %>%
 			filter(Method %in% methodsusing) %>%
-			mutate(Efficacy = 1-Reduction) %>%
-			group_by(Method, Efficacy, Classification) %>%
-			summarise(Number = n()) %>%
-			# Need to join with full dataset:
-			full_join( crossing(Efficacy=unique(1-res$Reduction), Method= methodsusing, Classification=factor(levels(res$Classification), levels=levels(res$Classification))) , by = c("Method", "Efficacy", "Classification")) %>%
-			# Any blank numbers are zeros:
-			mutate(Number = ifelse(is.na(Number), 0, Number)) %>%
-			group_by(Method, Efficacy) %>%
-			mutate(Proportion = Number / sum(Number)) %>%
-			ungroup()
+		    group_by(Method, Efficacy, Classification) %>%
+		    summarise(Number = sum(Number), Proportion = sum(Proportion))
+			
 
 		theme_set(theme_light())
 		
 		ti <- rv$simpars$target
 		ta <- ti - rv$simpars$delta
 		incres <- typres %>%
-			filter(Classification=='inconclusive') %>%
+	    	filter(Classification %in% inconclusives[[input$statframe]] ) %>%
+		    group_by(Method, Efficacy) %>%
+		    summarise(Number = sum(Number), Proportion = sum(Proportion)) %>%
 			mutate(region = ifelse(Efficacy <= ta, 'one', ifelse(Efficacy < ti, 'two', 'three')))
 	
 		ggplot(incres, aes(x=Efficacy, y=1-Proportion, group=region)) +
@@ -158,25 +196,16 @@ function(input, output, session) {
 	
 	output$typologies_plot <- renderPlot({
 
-		res <- rv$storedres
-
-		res$Classification <- factor(res$Classification)
-		levels(res$Classification) <- classifications[[input$statframe]]
-
+		typres <- rv$storedres
+		levels(typres$Classification) <- classifications[[input$statframe]]
+		
 		methodsusing <- input$statmethod
 		
-		typres <- res %>%
+		typres <- typres %>%
 			filter(Method %in% methodsusing) %>%
-			mutate(Efficacy = 1-Reduction) %>%
-			group_by(Method, Efficacy, Classification) %>%
-			summarise(Number = n()) %>%
-			# Need to join with full dataset:
-			full_join( crossing(Efficacy=unique(1-res$Reduction), Method= methodsusing, Classification=factor(levels(res$Classification), levels=levels(res$Classification))) , by = c("Method", "Efficacy", "Classification")) %>%
-			# Any blank numbers are zeros:
-			mutate(Number = ifelse(is.na(Number), 0, Number)) %>%
-			group_by(Method, Efficacy) %>%
-			mutate(Proportion = Number / sum(Number)) %>%
-			ungroup()
+		    group_by(Method, Efficacy, Classification) %>%
+		    summarise(Number = sum(Number), Proportion = sum(Proportion))
+			
 
 		theme_set(theme_light())
 		
@@ -196,7 +225,7 @@ function(input, output, session) {
 		
 	})
 	
-	output$parameters <- renderText(paste0('<p>Showing results for the ', input$statmethod, ' method and ', input$statframe, ' et al framework, with parameters: N = ', rv$simpars$N, ', mu = ', rv$simpars$mu, ', k1 = ', rv$simpars$k1, ', k2 = ', rv$simpars$k2, ', correlation = ', rv$simpars$cor, ', target = ', rv$simpars$target, ', delta = ', rv$simpars$delta, ', alpha = ', rv$simpars$pthresh))
+	output$parameters <- renderText(paste0('<p>Showing results for the ', if(input$customise) '(customised) ', 'guidelines for ', input$preset, '</p><p>[Parameters: N = ', rv$simpars$N, ', mu = ', rv$simpars$mu, ', k1 = ', rv$simpars$k1, ', k2 = ', rv$simpars$k2, ', correlation = ', rv$simpars$cor, ', target = ', rv$simpars$target, ', delta = ', rv$simpars$delta, ', alpha = ', rv$simpars$pthresh, ']</p>Probabilities calculated using the ', input$statmethod, ' method and ', if(input$statframe=='Typologies') 'raw typologies' else paste0(input$statframe, ' et al framework'), '</p>'))
 	
 	output$footer <- renderText(paste0('<p align="center">Power calculation tool for FECRT data by Matthew Denwood (last updated ', pubdate, ')<br><a href="http://www.fecrt.com/", target="_blank">Learn more (opens in a new window)</a></p>'))
 }
