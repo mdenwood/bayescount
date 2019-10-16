@@ -1,11 +1,71 @@
-#include "Rcpp.h"
+//  This code is based on a function extracted from R-3.6.1/src/library/stats/src/optimize.c which contains the following:
 
-// Adapted from Brent_fmin in stats package optimize.c:
 /*
-    This function subprogram is a slightly modified  version  of  the
-Algol  60 procedure  localmin  given in Richard Brent, Algorithms for
-Minimization without Derivatives, Prentice-Hall, Inc. (1973).
+
+ *  R : A Computer Language for Statistical Data Analysis
+ *  Copyright (C) 1995, 1996  Robert Gentleman and Ross Ihaka
+ *  Copyright (C) 2003-2004  The R Foundation
+ *  Copyright (C) 1998--2014  The R Core Team
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  https://www.R-project.org/Licenses/
+
+  ** SNIP **
+
+   R's  optimize() :   function	fmin(ax,bx,f,tol)
+   =    ==========		~~~~~~~~~~~~~~~~~
+
+        an approximation  x  to the point where  f  attains a minimum  on
+    the interval  (ax,bx)  is determined.
+
+    INPUT..
+
+    ax    left endpoint of initial interval
+    bx    right endpoint of initial interval
+    f     function which evaluates  f(x, info)  for any  x
+          in the interval  (ax,bx)
+    tol   desired length of the interval of uncertainty of the final
+          result ( >= 0.)
+
+    OUTPUT..
+
+    fmin  abcissa approximating the point where  f  attains a minimum
+
+        The method used is a combination of  golden  section  search  and
+    successive parabolic interpolation.  convergence is never much slower
+    than  that  for  a  Fibonacci search.  If  f  has a continuous second
+    derivative which is positive at the minimum (which is not  at  ax  or
+    bx),  then  convergence  is  superlinear, and usually of the order of
+    about  1.324....
+        The function  f  is never evaluated at two points closer together
+    than  eps*abs(fmin)+(tol/3), where eps is  approximately  the  square
+    root  of  the  relative  machine  precision.   if   f   is a unimodal
+    function and the computed values of   f   are  always  unimodal  when
+    separated  by  at least  eps*abs(x)+(tol/3), then  fmin  approximates
+    the abcissa of the global minimum of  f  on the interval  ax,bx  with
+    an error less than  3*eps*abs(fmin)+tol.  if   f   is  not  unimodal,
+    then fmin may approximate a local, but perhaps non-global, minimum to
+    the same accuracy.
+        This function subprogram is a slightly modified  version  of  the
+    Algol  60 procedure  localmin  given in Richard Brent, Algorithms for
+    Minimization without Derivatives, Prentice-Hall, Inc. (1973).
 */
+
+// The Brent_fmin function has been modified and renamed to find_theta as needed by the bayescount package
+// NOTE: the copyright holder of this code is listed in the package DESCRIPTION file
+
+#include "Rcpp.h"
 
 // [[Rcpp::export]]
 double find_theta(const Rcpp::IntegerVector data, const double mu, const double ax, const double bx, const double tol)
